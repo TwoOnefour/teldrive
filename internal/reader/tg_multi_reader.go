@@ -156,29 +156,32 @@ func (r *tgMultiReader) fillBatch() error {
 	buffers := make([]*buffer, r.concurrency)
 
 	for i := 0; i < r.concurrency && r.currentPart+i < r.totalParts; i++ {
-		g.Go(func() error {
-			chunkCtx, cancel := context.WithTimeout(ctx, r.timeout)
-			defer cancel()
-
-			chunk, err := r.fetchChunkWithTimeout(chunkCtx, int64(i))
-			if err != nil {
-				if errors.Is(err, context.DeadlineExceeded) {
-					return fmt.Errorf("chunk %d: %w", r.currentPart+i, ErrChunkTimeout)
-				}
-				return fmt.Errorf("chunk %d: %w", r.currentPart+i, err)
+	    idx := i
+	    g.Go(func() error {
+	        chunkCtx, cancel := context.WithTimeout(ctx, r.timeout)
+	        defer cancel()
+	
+	        chunk, err := r.fetchChunkWithTimeout(chunkCtx, int64(idx))
+	        if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return fmt.Errorf("chunk %d: %w", r.currentPart+i, ErrChunkTimeout)
 			}
-
-			if r.totalParts == 1 {
-				chunk = chunk[r.leftCut:r.rightCut]
-			} else if r.currentPart+i == 0 {
-				chunk = chunk[r.leftCut:]
-			} else if r.currentPart+i+1 == r.totalParts {
-				chunk = chunk[:r.rightCut]
-			}
-
-			buffers[i] = &buffer{buf: chunk}
-			return nil
-		})
+			return fmt.Errorf("chunk %d: %w", r.currentPart+i, err)
+	        }
+	
+	        if len(chunk) < r.rightCut { r.rightCut = len(chunk) }
+	        if len(chunk) < int(r.leftCut) { return fmt.Errorf("empty chunk") }
+	
+	        if r.totalParts == 1 {
+	            chunk = chunk[r.leftCut:r.rightCut]
+	        } else if r.currentPart+idx == 0 {
+	            chunk = chunk[r.leftCut:]
+	        } else if r.currentPart+idx+1 == r.totalParts {
+	            chunk = chunk[:r.rightCut]
+	        }
+	        buffers[idx] = &buffer{buf: chunk}
+	        return nil
+	    })
 	}
 
 	if err := g.Wait(); err != nil {
