@@ -169,8 +169,8 @@ func (r *tgMultiReader) fillBatch() error {
 			return fmt.Errorf("chunk %d: %w", r.currentPart+i, err)
 	        }
 	
-	        if len(chunk) < r.rightCut { r.rightCut = len(chunk) }
-	        if len(chunk) < int(r.leftCut) { return fmt.Errorf("empty chunk") }
+	        if int64(len(chunk)) < r.rightCut { r.rightCut = int64(len(chunk)) }
+	        if int64(len(chunk)) < r.leftCut { return fmt.Errorf("empty chunk") }
 	
 	        if r.totalParts == 1 {
 	            chunk = chunk[r.leftCut:r.rightCut]
