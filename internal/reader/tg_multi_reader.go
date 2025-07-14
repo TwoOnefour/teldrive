@@ -152,45 +152,39 @@ func (r *tgMultiReader) fillBuffer() {
 func (r *tgMultiReader) fillBatch() error {
 	g, ctx := errgroup.WithContext(r.ctx)
 	g.SetLimit(r.concurrency)
-
 	buffers := make([]*buffer, r.concurrency)
-
 	for i := 0; i < r.concurrency && r.currentPart+i < r.totalParts; i++ {
-	    idx := i
-	    g.Go(func() error {
-	        chunkCtx, cancel := context.WithTimeout(ctx, r.timeout)
-	        defer cancel()
-	
-	        chunk, err := r.fetchChunkWithTimeout(chunkCtx, int64(idx))
-	        if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				return fmt.Errorf("chunk %d: %w", r.currentPart+i, ErrChunkTimeout)
+		i := i
+		g.Go(func() error {
+			chunkCtx, cancel := context.WithTimeout(ctx, r.timeout)
+			defer cancel()
+			partNum := r.currentPart + i
+			chunk, err := r.fetchChunkWithTimeout(chunkCtx, int64(i))
+			if err != nil {
+				if errors.Is(err, context.DeadlineExceeded) {
+					return fmt.Errorf("chunk %d: %w", partNum, ErrChunkTimeout)
+				}
+				return fmt.Errorf("chunk %d: %w", partNum, err)
 			}
-			return fmt.Errorf("chunk %d: %w", r.currentPart+i, err)
-	        }
-	
-	        if int64(len(chunk)) < r.rightCut { r.rightCut = int64(len(chunk)) }
-	        if int64(len(chunk)) < r.leftCut { return fmt.Errorf("empty chunk") }
-	
-	        if r.totalParts == 1 {
-	            chunk = chunk[r.leftCut:r.rightCut]
-	        } else if r.currentPart+idx == 0 {
-	            chunk = chunk[r.leftCut:]
-	        } else if r.currentPart+idx+1 == r.totalParts {
-	            chunk = chunk[:r.rightCut]
-	        }
-	        buffers[idx] = &buffer{buf: chunk}
-	        return nil
-	    })
+			if len(chunk) > 0 {
+				if r.totalParts == 1 {
+					chunk = chunk[r.leftCut:r.rightCut]
+				} else if partNum == 0 { // 使用 partNum 来判断更清晰
+					chunk = chunk[r.leftCut:]
+				} else if partNum+1 == r.totalParts {
+					chunk = chunk[:r.rightCut]
+				}
+			}
+			buffers[i] = &buffer{buf: chunk}
+			return nil
+		})
 	}
-
 	if err := g.Wait(); err != nil {
 		return err
 	}
-
 	for _, buf := range buffers {
 		if buf == nil {
-			break
+			continue
 		}
 		select {
 		case r.bufferChan <- buf:
@@ -198,10 +192,12 @@ func (r *tgMultiReader) fillBatch() error {
 			return r.ctx.Err()
 		}
 	}
-
-	r.currentPart += r.concurrency
-	r.offset += r.chunkSize * int64(r.concurrency)
-
+	partsInBatch := 0
+	for i := 0; i < r.concurrency && r.currentPart+i < r.totalParts; i++ {
+		partsInBatch++
+	}
+	r.currentPart += partsInBatch
+	r.offset += r.chunkSize * int64(partsInBatch)
 	return nil
 }
 
