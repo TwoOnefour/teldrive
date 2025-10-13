@@ -45,7 +45,8 @@ func newClient(ctx context.Context, config *config.TGConfig, handler telegram.Up
 
 	opts := telegram.Options{
 		Resolver: dcs.Plain(dcs.PlainOptions{
-			Dial: dialer,
+			Dial:       dialer,
+			PreferIPv6: config.PreferIPv6,
 		}),
 		ReconnectionBackoff: func() backoff.BackOff {
 			return newBackoff(config.ReconnectTimeout)

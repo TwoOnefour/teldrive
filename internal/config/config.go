@@ -106,6 +106,7 @@ type TGConfig struct {
 	ChannelLimit      int64         `config:"channel-limit" description:"Channel message limit before auto channel creation" default:"500000"`
 	Uploads           TGUpload      `config:"uploads"`
 	Stream            TGStream      `config:"stream"`
+	PreferIPv6        bool          `config:"prefer-ipv6" description:"Prefer IPv6 connection" default:"false"`
 }
 
 type ConfigLoader struct {
