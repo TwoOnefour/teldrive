@@ -107,6 +107,7 @@ type TGConfig struct {
 	Uploads           TGUpload      `config:"uploads"`
 	Stream            TGStream      `config:"stream"`
 	PreferIPv6        bool          `config:"prefer-ipv6" description:"Prefer IPv6 connection" default:"false"`
+	DC                int           `config:"dc" description:"account dc" default:"2"`
 }
 
 type ConfigLoader struct {
