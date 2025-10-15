@@ -56,8 +56,6 @@ func NewMemoryCache(size int) *MemoryCache {
 }
 
 func (m *MemoryCache) Get(key string, value any) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
 	key = m.prefix + key
 	data, err := m.cache.Get([]byte(key))
 	if err != nil {
@@ -67,8 +65,6 @@ func (m *MemoryCache) Get(key string, value any) error {
 }
 
 func (m *MemoryCache) Set(key string, value any, expiration time.Duration) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
 	key = m.prefix + key
 	data, err := msgpack.Marshal(value)
 	if err != nil {
@@ -78,8 +74,6 @@ func (m *MemoryCache) Set(key string, value any, expiration time.Duration) error
 }
 
 func (m *MemoryCache) Delete(keys ...string) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
 	for _, key := range keys {
 		m.cache.Del([]byte(m.prefix + key))
 	}
