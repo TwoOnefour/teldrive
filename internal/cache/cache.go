@@ -24,7 +24,6 @@ type Cacher interface {
 type MemoryCache struct {
 	cache  *freecache.Cache
 	prefix string
-	mu     sync.RWMutex
 }
 
 func NewCache(ctx context.Context, conf *config.CacheConfig) Cacher {
